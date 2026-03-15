@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AgentGame Viewer</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="top">
+      <div class="brand">AgentGame Viewer</div>
+      <div class="controls">
+        <input id="matchId" placeholder="match_id（uuid hex）" />
+        <button id="loadBtn">加载回放</button>
+      </div>
+    </header>
+
+    <main class="grid">
+      <section class="panel">
+        <h2>对局信息</h2>
+        <pre id="meta" class="pre"></pre>
+      </section>
+      <section class="panel">
+        <h2>事件流</h2>
+        <div class="row">
+          <button id="prevBtn">上一步</button>
+          <button id="nextBtn">下一步</button>
+          <span id="cursor" class="hint"></span>
+        </div>
+        <pre id="event" class="pre"></pre>
+      </section>
+    </main>
+
+    <script src="viewer.js"></script>
+  </body>
+</html>
+

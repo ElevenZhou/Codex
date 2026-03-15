@@ -1,0 +1,80 @@
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Noto Sans", "PingFang SC", "Microsoft YaHei", sans-serif;
+  background: #070a12;
+  color: #eef3ff;
+}
+.wrap { width: min(1040px, calc(100% - 32px)); margin: 0 auto; }
+.hero {
+  padding: 40px 0 22px;
+  background: radial-gradient(1200px 500px at 10% 10%, rgba(90,160,255,.25), transparent),
+              radial-gradient(1000px 420px at 80% 0%, rgba(255,140,80,.18), transparent);
+  border-bottom: 1px solid rgba(255,255,255,.08);
+}
+.title { font-size: 28px; font-weight: 800; letter-spacing: .4px; }
+.sub { margin-top: 10px; opacity: .84; line-height: 1.5; }
+.links { margin-top: 14px; display: flex; gap: 10px; }
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,.16);
+  text-decoration: none;
+  color: #eef3ff;
+  background: rgba(90,160,255,.22);
+}
+.btn.ghost { background: rgba(255,255,255,.06); }
+.btn:hover { background: rgba(90,160,255,.32); }
+.btn.ghost:hover { background: rgba(255,255,255,.10); }
+.card {
+  margin: 16px auto;
+  padding: 16px;
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 16px;
+  background: rgba(255,255,255,.03);
+}
+h2 { margin: 0 0 12px; font-size: 14px; opacity: .92; }
+.grid { display: grid; gap: 10px; }
+.line {
+  display: grid;
+  grid-template-columns: 140px 120px 1fr;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,.06);
+  background: rgba(255,255,255,.02);
+}
+.name { font-weight: 700; }
+.tag {
+  width: fit-content;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.14);
+  font-size: 12px;
+  opacity: .92;
+}
+.tag.inprog { background: rgba(90,160,255,.18); }
+.tag.idea { background: rgba(255,255,255,.06); }
+.desc { opacity: .82; line-height: 1.4; }
+.updates { display: grid; gap: 10px; }
+.update {
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,.06);
+  background: rgba(255,255,255,.02);
+}
+.update .when { font-size: 12px; opacity: .72; }
+.update .what { margin-top: 6px; line-height: 1.5; }
+.list { margin: 0; padding-left: 18px; opacity: .86; }
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 12px;
+}
+@media (max-width: 900px) {
+  .line { grid-template-columns: 1fr; }
+}
+
