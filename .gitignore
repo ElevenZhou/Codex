@@ -6,3 +6,5 @@ __pycache__/
 # AgentGame runtime data
 AgentGame/data/
 
+# Cleanup from earlier nesting (ignore if it exists on disk)
+AgentGame/AgentGame/

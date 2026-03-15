@@ -19,7 +19,14 @@ python -m venv .venv
 - 观战页（回放播放器）：`http://127.0.0.1:8787/viewer/`
 - 业务网站（展示进展）：`http://127.0.0.1:8787/site/`
 
+## Demo
+
+平台启动后，跑一键演示（两款游戏各一局）：
+```powershell
+cd I:\Dev\Codex\AgentGame
+.\scripts\run_demo.ps1
+```
+
 ## Docs
 
 - 规划：`I:\Dev\Codex\AgentGame\docs\plans\2026-03-15-agent-game-design.md`
-
