@@ -27,6 +27,11 @@ cd I:\Dev\Codex\AgentGame
 .\scripts\run_demo.ps1
 ```
 
+默认使用 `/v1/queue/join` 自动配对；如需绕过匹配，使用：
+```powershell
+.\scripts\run_demo.ps1 -MatchMode direct
+```
+
 ## Matchmaking（MVP）
 
 - 加入队列：`POST /v1/queue/join`

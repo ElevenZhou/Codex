@@ -3,7 +3,10 @@ param(
   [int]$Seed = 1,
   [string]$A = "botA",
   [string]$B = "botB",
-  [int]$TimeoutSec = 3
+  [int]$TimeoutSec = 3,
+  [ValidateSet("queue","direct")]
+  [string]$MatchMode = "queue",
+  [int]$QueueWaitSec = 15
 )
 
 $ErrorActionPreference = "Stop"
@@ -36,14 +39,49 @@ function GetJson($url) {
   return Invoke-RestMethod -Method Get -Uri $url -TimeoutSec $TimeoutSec
 }
 
+function QueueJoin($gameId, $agentId, $rulesetVersion, $maxTurns) {
+  return PostJson "$BaseUrl/v1/queue/join" @{ game_id=$gameId; agent_id=$agentId; ruleset_version=$rulesetVersion; max_turns=$maxTurns }
+}
+
+function WaitForMatch($ticketId) {
+  $deadline = (Get-Date).AddSeconds($QueueWaitSec)
+  while ((Get-Date) -lt $deadline) {
+    $t = GetJson "$BaseUrl/v1/queue/status/$ticketId"
+    if ($t.status -eq "matched" -and $t.match_id) { return $t.match_id }
+    Start-Sleep -Milliseconds 350
+  }
+  throw "queue_timeout: ticket_id=$ticketId wait=$QueueWaitSec sec"
+}
+
+function CreateMatch($gameId, $rulesetVersion, $seed, $players, $maxTurns) {
+  return PostJson "$BaseUrl/v1/matches" @{ game_id=$gameId; ruleset_version=$rulesetVersion; seed=$seed; players=$players; max_turns=$maxTurns }
+}
+
+function GetOrCreateMatchId($gameId, $rulesetVersion, $seed, $players, $maxTurns) {
+  if ($MatchMode -eq "direct") {
+    $m = CreateMatch $gameId $rulesetVersion $seed $players $maxTurns
+    return $m.match_id
+  }
+
+  $t1 = QueueJoin $gameId $players[0] $rulesetVersion $maxTurns
+  $t2 = QueueJoin $gameId $players[1] $rulesetVersion $maxTurns
+
+  if ($t1.status -eq "matched" -and $t1.match_id) { return $t1.match_id }
+  if ($t2.status -eq "matched" -and $t2.match_id) { return $t2.match_id }
+
+  if ($t2.ticket_id) { return (WaitForMatch $t2.ticket_id) }
+  if ($t1.ticket_id) { return (WaitForMatch $t1.ticket_id) }
+  throw "queue_join_failed"
+}
+
 Write-Host "BaseUrl: $BaseUrl"
 Write-Host "Seed: $Seed"
 
 EnsureServerUp $BaseUrl
 
 Write-Host "`n== Grid Arena demo ==" -ForegroundColor Cyan
-$m1 = PostJson "$BaseUrl/v1/matches" @{ game_id="grid-arena"; seed=$Seed; players=@($A,$B); max_turns=40 }
-$mid1 = $m1.match_id
+$ruleset = "2026-03-15"
+$mid1 = GetOrCreateMatchId "grid-arena" $ruleset $Seed @($A,$B) 40
 Write-Host "match_id: $mid1"
 
 # Deterministic small script: move towards each other then attack.
@@ -70,8 +108,7 @@ Write-Host "leaderboard: $BaseUrl/v1/leaderboards/grid-arena"
 
 
 Write-Host "`n== Mini Auction demo ==" -ForegroundColor Cyan
-$m2 = PostJson "$BaseUrl/v1/matches" @{ game_id="mini-auction"; seed=$Seed; players=@($A,$B); max_turns=200 }
-$mid2 = $m2.match_id
+$mid2 = GetOrCreateMatchId "mini-auction" $ruleset $Seed @($A,$B) 200
 Write-Host "match_id: $mid2"
 
 for ($i = 0; $i -lt 5; $i++) {
