@@ -3,8 +3,9 @@ from __future__ import annotations
 import json
 import sys
 import uuid
+import time
 from pathlib import Path
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional, Tuple
 
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
@@ -30,6 +31,9 @@ app.mount("/site", StaticFiles(directory=str(AGENTGAME_DIR / "site"), html=True)
 
 
 RUNTIMES: Dict[str, MatchRuntime] = {}
+QUEUE: Dict[Tuple[str, str], List[str]] = {}
+TICKETS: Dict[str, Dict[str, Any]] = {}
+SEED_COUNTER = int(time.time()) % 2_000_000_000
 
 
 class CreateMatchRequest(BaseModel):
@@ -53,6 +57,17 @@ class ActRequest(BaseModel):
     agent_id: str
     action: Dict[str, Any]
     chat: Optional[str] = Field(default=None, max_length=400)
+
+
+class QueueJoinRequest(BaseModel):
+    game_id: Literal["grid-arena", "mini-auction"]
+    ruleset_version: str = Field(default="2026-03-15")
+    agent_id: str = Field(min_length=1, max_length=80)
+    max_turns: int = Field(default=40, ge=1, le=500)
+
+
+class QueueLeaveRequest(BaseModel):
+    ticket_id: str
 
 
 @app.get("/health")
@@ -149,3 +164,86 @@ def leaderboard(game_id: str) -> Dict[str, Any]:
 def root() -> Dict[str, str]:
     return {"service": "AgentGame Platform", "health": "/health", "viewer": "/viewer/", "site": "/site/"}
 
+
+def _next_seed() -> int:
+    global SEED_COUNTER
+    SEED_COUNTER = (SEED_COUNTER + 1) % 2_000_000_000
+    return SEED_COUNTER
+
+
+@app.post("/v1/queue/join")
+def queue_join(req: QueueJoinRequest) -> Dict[str, Any]:
+    key = (req.game_id, req.ruleset_version)
+
+    # Deduplicate: if already queued, return existing ticket.
+    for ticket_id, t in TICKETS.items():
+        if t.get("status") == "queued" and t.get("agent_id") == req.agent_id and t.get("key") == list(key):
+            q = QUEUE.get(key, [])
+            pos = q.index(req.agent_id) + 1 if req.agent_id in q else None
+            return {"status": "queued", "ticket_id": ticket_id, "position": pos}
+
+    q = QUEUE.setdefault(key, [])
+    q.append(req.agent_id)
+
+    ticket_id = uuid.uuid4().hex
+    TICKETS[ticket_id] = {
+        "status": "queued",
+        "agent_id": req.agent_id,
+        "key": list(key),
+        "created_at_ms": int(time.time() * 1000),
+    }
+
+    # MVP: pair first two agents.
+    if len(q) >= 2:
+        p1 = q.pop(0)
+        p2 = q.pop(0)
+        match_id = uuid.uuid4().hex
+        runtime = create_runtime(
+            match_id=match_id,
+            game_id=req.game_id,
+            ruleset_version=req.ruleset_version,
+            seed=_next_seed(),
+            players=[p1, p2],
+            max_turns=req.max_turns,
+            data_dir=DATA_DIR,
+        )
+        RUNTIMES[match_id] = runtime
+
+        # Mark any queued tickets for these agents as matched.
+        for tid, t in TICKETS.items():
+            if t.get("status") == "queued" and t.get("key") == list(key) and t.get("agent_id") in (p1, p2):
+                t["status"] = "matched"
+                t["match_id"] = match_id
+                t["matched_at_ms"] = int(time.time() * 1000)
+
+    t = TICKETS[ticket_id]
+    if t.get("status") == "matched":
+        return {"status": "matched", "ticket_id": ticket_id, "match_id": t.get("match_id")}
+    return {"status": "queued", "ticket_id": ticket_id}
+
+
+@app.get("/v1/queue/status/{ticket_id}")
+def queue_status(ticket_id: str) -> Dict[str, Any]:
+    t = TICKETS.get(ticket_id)
+    if not t:
+        raise HTTPException(status_code=404, detail="ticket_not_found")
+    return t
+
+
+@app.post("/v1/queue/leave")
+def queue_leave(req: QueueLeaveRequest) -> Dict[str, Any]:
+    t = TICKETS.get(req.ticket_id)
+    if not t:
+        raise HTTPException(status_code=404, detail="ticket_not_found")
+    if t.get("status") != "queued":
+        return {"ok": True, "status": t.get("status")}
+
+    game_id, ruleset_version = t.get("key", [None, None])
+    key = (game_id, ruleset_version)
+    q = QUEUE.get(key, [])
+    agent_id = t.get("agent_id")
+    if agent_id in q:
+        q.remove(agent_id)
+    t["status"] = "left"
+    t["left_at_ms"] = int(time.time() * 1000)
+    return {"ok": True}
