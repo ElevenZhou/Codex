@@ -4,6 +4,34 @@ let idx = -1;
 
 function $(id) { return document.getElementById(id); }
 
+function shareUrl(matchId) {
+  const url = new URL(window.location.href);
+  url.searchParams.set("match", matchId);
+  return url.toString();
+}
+
+async function copyToClipboard(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      const ok = document.execCommand("copy");
+      document.body.removeChild(ta);
+      return ok;
+    } catch {
+      return false;
+    }
+  }
+}
+
 function renderGridArenaSummary(matchMeta, events, idx) {
   const players = matchMeta.players || [];
   const size = 7;
@@ -42,27 +70,28 @@ function renderGridArenaSummary(matchMeta, events, idx) {
 }
 
 function renderMiniAuctionSummary(matchMeta, events, idx) {
-  let lastSettle = null;
+  const settles = [];
   for (let i = 0; i <= idx && i < events.length; i++) {
     const e = events[i] || {};
     const delta = e.delta || {};
-    if (delta.settle) lastSettle = delta.settle;
+    if (delta.settle) settles.push(delta.settle);
   }
-  if (!lastSettle) return "Mini Auction (MVP summary)\n\n尚未结算（等待所有人出价）";
+  if (!settles.length) return "Mini Auction (MVP summary)\n\n尚未结算（等待所有人出价）";
 
-  const lines = [];
-  lines.push("Mini Auction (MVP summary)");
+  const last = settles[settles.length - 1];
+  const lines = ["Mini Auction (MVP summary)", ""];
+  lines.push(`settles: ${settles.length}`);
   lines.push("");
-  lines.push(`round: ${lastSettle.round}`);
-  lines.push(`winner: ${lastSettle.winner}`);
-  lines.push(`price: ${lastSettle.price}`);
-  lines.push(`winner_value: ${lastSettle.winner_value}`);
+  lines.push("history:");
+  for (const s of settles) {
+    lines.push(`- round ${s.round}: winner=${s.winner} price=${s.price} value=${s.winner_value}`);
+  }
   lines.push("");
-  lines.push("scores:");
-  lines.push(JSON.stringify(lastSettle.scores, null, 2));
+  lines.push("latest scores:");
+  lines.push(JSON.stringify(last.scores, null, 2));
   lines.push("");
-  lines.push("credits:");
-  lines.push(JSON.stringify(lastSettle.credits, null, 2));
+  lines.push("latest credits:");
+  lines.push(JSON.stringify(last.credits, null, 2));
   return lines.join("\n");
 }
 
@@ -88,6 +117,8 @@ async function loadReplay(matchId) {
   meta = data.match;
   events = data.events || [];
   idx = events.length ? 0 : -1;
+  const url = shareUrl(matchId);
+  window.history.replaceState({}, "", url);
   render();
 }
 
@@ -107,6 +138,14 @@ $("nextBtn").addEventListener("click", () => {
   if (!events.length) return;
   idx = Math.min(events.length - 1, idx + 1);
   render();
+});
+
+$("copyBtn").addEventListener("click", async () => {
+  const matchId = $("matchId").value.trim();
+  if (!matchId) return alert("请先填写 match_id");
+  const url = shareUrl(matchId);
+  const ok = await copyToClipboard(url);
+  if (!ok) return alert(url);
 });
 
 // Support deep-link: /viewer/?match=<id>

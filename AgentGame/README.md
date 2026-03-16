@@ -27,6 +27,12 @@ cd I:\Dev\Codex\AgentGame
 .\scripts\run_demo.ps1
 ```
 
+## Matchmaking（MVP）
+
+- 加入队列：`POST /v1/queue/join`
+- 查询 ticket：`GET /v1/queue/status/{ticket_id}`
+- 离开队列：`POST /v1/queue/leave`
+
 ## Docs
 
 - 规划：`I:\Dev\Codex\AgentGame\docs\plans\2026-03-15-agent-game-design.md`
