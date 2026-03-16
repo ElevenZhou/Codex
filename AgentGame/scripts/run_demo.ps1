@@ -2,21 +2,44 @@ param(
   [string]$BaseUrl = "http://127.0.0.1:8787",
   [int]$Seed = 1,
   [string]$A = "botA",
-  [string]$B = "botB"
+  [string]$B = "botB",
+  [int]$TimeoutSec = 3
 )
 
 $ErrorActionPreference = "Stop"
 
+function EnsureServerUp($baseUrl) {
+  try {
+    $health = Invoke-RestMethod -Method Get -Uri "$baseUrl/health" -TimeoutSec $TimeoutSec
+    if ($health.status -ne "ok") {
+      throw "health_not_ok: $($health | ConvertTo-Json -Depth 5)"
+    }
+  } catch {
+    Write-Host "Cannot reach AgentGame platform at $baseUrl" -ForegroundColor Red
+    Write-Host ""
+    Write-Host "Start the server in another terminal first:" -ForegroundColor Yellow
+    Write-Host "  cd I:\\Dev\\Codex\\AgentGame\\platform"
+    Write-Host "  .\\.venv\\Scripts\\python -m uvicorn app.main:app --reload --port 8787"
+    Write-Host ""
+    Write-Host "Then re-run:" -ForegroundColor Yellow
+    Write-Host "  cd I:\\Dev\\Codex\\AgentGame"
+    Write-Host "  .\\scripts\\run_demo.ps1"
+    throw
+  }
+}
+
 function PostJson($url, $body) {
-  return Invoke-RestMethod -Method Post -Uri $url -ContentType "application/json" -Body ($body | ConvertTo-Json -Depth 20)
+  return Invoke-RestMethod -Method Post -Uri $url -TimeoutSec $TimeoutSec -ContentType "application/json" -Body ($body | ConvertTo-Json -Depth 20)
 }
 
 function GetJson($url) {
-  return Invoke-RestMethod -Method Get -Uri $url
+  return Invoke-RestMethod -Method Get -Uri $url -TimeoutSec $TimeoutSec
 }
 
 Write-Host "BaseUrl: $BaseUrl"
 Write-Host "Seed: $Seed"
+
+EnsureServerUp $BaseUrl
 
 Write-Host "`n== Grid Arena demo ==" -ForegroundColor Cyan
 $m1 = PostJson "$BaseUrl/v1/matches" @{ game_id="grid-arena"; seed=$Seed; players=@($A,$B); max_turns=40 }
@@ -76,4 +99,3 @@ Write-Host "viewer: $BaseUrl/viewer/?match=$mid2"
 Write-Host "leaderboard: $BaseUrl/v1/leaderboards/mini-auction"
 
 Write-Host "`nDone." -ForegroundColor Green
-
